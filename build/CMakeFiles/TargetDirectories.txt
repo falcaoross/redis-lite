@@ -1,0 +1,3 @@
+C:/Users/ROSS/Desktop/redis-lite/build/CMakeFiles/redis-lite.dir
+C:/Users/ROSS/Desktop/redis-lite/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/ROSS/Desktop/redis-lite/build/CMakeFiles/ZERO_CHECK.dir

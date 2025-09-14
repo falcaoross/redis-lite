@@ -1,7 +1,9 @@
 #include "cache.h"
+#include "persistence.h"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <unordered_map>
 
 static inline std::string trim(const std::string &s)
 {
@@ -25,8 +27,18 @@ int main(int argc, char **argv)
         {
         }
     }
-    LRUCache cache(capacity, "data/aof.log");
-    std::cout << "redis-lite (toy) — capacity=" << capacity << "\n";
+
+    // Our cache
+    LRUCache cache(capacity);
+
+    // Persistence manager
+    Persistence persistence("data/snapshot.rdb", "data/aof.log");
+
+    // DB backing store
+    std::unordered_map<std::string, std::string> db;
+    persistence.load(db); // restore from snapshot + AOF
+
+    std::cout << "redis-lite (toy) AES + Hybrid Snapshot/AOF — capacity=" << capacity << "\n";
     std::cout << "Commands: SET key value | GET key | DEL key | INFO | SAVE | EXIT\n";
 
     std::string line;
@@ -42,28 +54,23 @@ int main(int argc, char **argv)
         std::istringstream iss(line);
         std::string cmd;
         iss >> cmd;
-        // uppercase command
         std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
 
         if (cmd == "SET")
         {
-            std::string key;
-            iss >> key;
-            if (key.empty())
+            std::string key, value;
+            iss >> key >> value;
+            if (key.empty() || value.empty())
             {
                 std::cout << "ERR wrong number of args for 'SET'\n";
                 continue;
             }
-            // get value = rest of line after key
-            auto pos = line.find(key);
-            if (pos == std::string::npos)
-            {
-                std::cout << "ERR\n";
-                continue;
-            }
-            pos += key.size();
-            std::string value = trim(line.substr(pos));
             cache.set(key, value);
+            db[key] = value;
+
+            persistence.appendCommand("SET " + key + " " + value);
+            persistence.periodicSnapshot(db);
+
             std::cout << "OK\n";
         }
         else if (cmd == "GET")
@@ -91,6 +98,12 @@ int main(int argc, char **argv)
                 continue;
             }
             bool removed = cache.del(key);
+            if (removed)
+            {
+                db.erase(key);
+                persistence.appendCommand("DEL " + key);
+                persistence.periodicSnapshot(db);
+            }
             std::cout << (removed ? "1\n" : "0\n");
         }
         else if (cmd == "INFO")
@@ -99,12 +112,13 @@ int main(int argc, char **argv)
         }
         else if (cmd == "SAVE")
         {
-            cache.saveAOF();
-            std::cout << "AOF flushed\n";
+            persistence.saveSnapshot(db);
+            std::cout << "Snapshot saved manually.\n";
         }
         else if (cmd == "EXIT" || cmd == "QUIT")
         {
             std::cout << "bye\n";
+            persistence.saveSnapshot(db);
             break;
         }
         else

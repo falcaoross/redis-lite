@@ -6,7 +6,11 @@
 class LRUCache
 {
 public:
-    LRUCache(size_t capacity, const std::string &aof_path = "data/aof.log");
+    LRUCache(size_t capacity,
+             const std::string &snapshot_path = "data/snapshot.rdb",
+             const std::string &aof_path = "data/aof.log",
+             const std::string &aes_key = "1234567890123456"); // 16 bytes for AES-128
+
     ~LRUCache();
 
     // Public API
@@ -17,8 +21,9 @@ public:
     size_t size() const noexcept;
     size_t capacity() const noexcept;
 
-    // Force a snapshot (writes nothing fancy—just flushes AOF)
-    void saveAOF();
+    // Persistence
+    void saveSnapshot();
+    void flushAOF();
 
 private:
     struct Entry
@@ -28,18 +33,25 @@ private:
     };
 
     size_t capacity_;
-    std::list<std::string> lru_list_; // front = most recent
+    std::list<std::string> lru_list_;
     std::unordered_map<std::string, Entry> map_;
 
+    std::string snapshot_path_;
     std::string aof_path_;
+    std::string aes_key_;
     bool loading_;
 
-    // persistence helpers
+    // Internals
+    void set_internal(const std::string &key, const std::string &value, bool append);
+    void del_internal(const std::string &key, bool append);
+
+    // Persistence helpers
+    void loadSnapshot();
     void loadAOF();
     void appendAOF_set(const std::string &key, const std::string &value);
     void appendAOF_del(const std::string &key);
 
-    // internals: append flag decides whether to log to AOF
-    void set_internal(const std::string &key, const std::string &value, bool append);
-    void del_internal(const std::string &key, bool append);
+    // AES helpers
+    std::string aes_encrypt(const std::string &plaintext);
+    std::string aes_decrypt(const std::string &ciphertext);
 };

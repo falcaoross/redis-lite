@@ -7,6 +7,9 @@
     <ClCompile Include="C:\Users\ROSS\Desktop\redis-lite\src\cache.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\ROSS\Desktop\redis-lite\src\persistence.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="C:\Users\ROSS\Desktop\redis-lite\CMakeLists.txt" />
